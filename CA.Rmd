@@ -1,0 +1,348 @@
+---
+title: "CORONA ANALYSIS"
+author: "BEACONS"
+date: "3/7/2020"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+```{r setup, include=FALSE}
+library(tidyverse)
+library(flexdashboard)
+library(shiny)
+```
+
+
+```{r global}
+DATA = read.csv("Corona.csv")
+DATA = DATA[,-1]
+library(plotly)
+data <- read.csv("Cov.csv")
+
+attach(data)
+
+
+DATA[,1] = as.character(DATA[,1])
+DATA[,2] = as.character(DATA[,2])
+
+
+n = dim(DATA)[1]
+p = dim(DATA)[2]
+
+i = 1
+while(i<77)
+  {
+    if(DATA[i,1] == "")
+      DATA[i,1] = DATA[i,2]
+    i = i+1
+}
+
+DATA["Total_Confirmed"] = 0
+DATA["Total_Dead"] = 0
+DATA["Total_Recovered"] = 0
+i = 1
+while(i<77)
+{
+  c = as.numeric(DATA[i,seq(5, p, 3) ])
+  d = as.numeric(DATA[i,seq(6, p, 3) ])
+  r = as.numeric(DATA[i,seq(7, p, 3) ])
+  DATA[i,95] = sum(c)
+  DATA[i,96] = sum(d)
+  DATA[i,97] = sum(r)
+  i = i+1
+}
+```
+
+WORLD MAPPING
+=====================================  
+
+Inputs {.sidebar}
+-------------------------------------
+```{r}
+
+selectInput("n_breaks", label = "Country:",choices = DATA$Country,selected = 1,selectize = TRUE)
+
+renderPrint({
+  country_name <<- as.character(input$n_breaks)
+})
+
+
+```
+
+Row {data-height=750}
+-------------------------------------
+
+### Chart 1
+
+```{r }
+renderPlotly({
+  country_name = input$n_breaks
+  country = input$n_breaks
+  str(country)
+  T_DATA = DATA[,c(1,2,3,4,95,96,97)]
+    
+
+T_DATA = subset(T_DATA,Country == country)
+
+g <- list(
+  scope = country
+
+)
+
+fig <- plot_geo(T_DATA, lat = ~Lat, lon = ~Long,color="pink")
+fig <- fig %>% add_markers(
+    text = ~paste(paste("TOTAL CONFIRMED : ",Total_Confirmed),
+                  paste("TOTAL DEAD : ",Total_Dead),
+                  paste("TOTAL RECOVERED : ",Total_Recovered),
+                  paste("PROVINCE : ",Province),
+                  paste("COUNTRY : ",Country),
+                  sep = "<br />"), hoverinfo = "text"
+  )
+fig <- fig %>% layout(
+    title = ~paste("ATTACK OF CORONA VIRUS IN ",country," FROM 22/01/2020 TO 21/2/2020"), geo = g
+  )
+fig
+
+})
+```
+
+
+RECOVERED,DEAD,CONFIRMED
+=====================================  
+
+Row 
+-------------------------------------
+
+### Chart 1
+
+```{r }
+renderPlotly({
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  str(country)
+ 
+  # GRAPH
+
+  date = 1:30
+
+  date = as.matrix(date)
+
+
+  graph_data = rbind(date)
+  T_DATA = DATA[,c(-3,-4,-97,-96,-95)]
+  T_DATA = subset(T_DATA,Country == country)
+  p = dim(T_DATA)[2]
+
+  c = as.numeric(T_DATA[1,seq(3, p, 3) ])
+  d = as.numeric(T_DATA[1,seq(4, p, 3) ])
+  r = as.numeric(T_DATA[1,seq(5, p, 3) ])
+  graph_data = cbind(graph_data,c,d,r)
+  
+
+  graph_data = as.data.frame(graph_data)
+
+  colnames(graph_data) = c("DATE","CONFIRMED","DEAD","RECOVERED")
+
+  gg = ggplot(graph_data)+
+  geom_point(aes(x = DATE,y = CONFIRMED),colour = "blue")+
+  geom_point(aes(x = DATE,y = DEAD),colour = "red")+
+  geom_point(aes(x = DATE,y = RECOVERED),colour = "green")+
+  labs(title=paste("CORONA IN ",country),subtitle = "BLUE -> CONFIRMED : RED-> DEAD : GREEN->RECOVERED")
+  
+  gg
+})
+```
+
+DEATHS
+=====================================  
+
+Row 
+-------------------------------------
+
+### Chart 1
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Deaths) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+    mutate(Deaths=factor(Deaths)) %>%   # This trick update the factor levels
+    ggplot( aes(x=Province.State, y=Deaths)) +
+    geom_point( size=1, color="Red") +
+    theme_bw() +
+    coord_flip()+
+    xlab("Province")+
+    ggtitle(paste("PROVINCE WISE DEATHS DUE TO CORONA ",country))+
+    theme(axis.text.x =
+              element_text(size  = 10,
+                           angle = 90,
+                           hjust = 1,
+                           vjust = 1))
+    
+})
+```
+
+
+### Chart 2
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Deaths) %>%    # First sort by val. This sort the dataframe but NOT the factor levels   # This trick update the factor levels
+    ggplot( aes(x=Date, y=Deaths)) +
+    geom_bar( stat = "identity",size=0.5, color="Red") +
+    theme_bw() +
+    coord_flip()+
+    ggtitle("Total Number of Deaths",sum(subs$Deaths))+
+    xlab("Date")+
+    ylab("Deaths")+
+    ggtitle(paste("DATE WISE DEATHS IN ",country))+
+    theme(axis.text.x =
+              element_text(size  = 10,
+                           angle = 90,
+                           hjust = 1,
+                           vjust = 1))
+
+
+
+    
+})
+```
+
+
+CONFIRMED
+=====================================  
+
+Row 
+-------------------------------------
+
+### Chart 1
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Confirmed) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+    ggplot( aes(x=Province.State, y=Confirmed)) +
+    geom_point(stat="identity" ,size=1, color="orange") +
+    theme_bw() +
+    coord_flip()+
+    xlab("Province")+
+    ggtitle(paste("CONFIRMATION OF CORONA ATTACK ACCORDING TO PROVINCE ",country))+
+    theme(axis.text.x =
+              element_text(size  = 5,
+                           angle = 90,
+                           hjust = 1,
+                           vjust = 1))
+})
+```
+
+
+### Chart 2
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Confirmed) %>%    # First sort by val. This sort the dataframe but NOT the factor levels   # This trick update the factor levels
+    ggplot( aes(x=Date, y=Confirmed)) +
+    geom_bar( stat = "identity",size=0.5, color="orange") +
+    theme_bw() +
+    coord_flip()+
+    ggtitle("Total Number of Confirmed Cases:",sum(subs$Confirmed))+
+    xlab("Date")+
+    ylab("Confirmed Cases")+
+    ggtitle(paste("DATE WISE CONFIRMATION OF CORONA ATTACK IN ",country))+
+    theme(axis.text.x =
+              element_text(size  = 10,
+                           angle = 90,
+                           hjust = 1,
+                           vjust = 1))
+
+
+
+    
+})
+```
+
+
+RECOVERED
+=====================================  
+
+Row 
+-------------------------------------
+
+### Chart 1
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Recovered) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+    ggplot( aes(x=Province.State, y=Recovered)) +
+    geom_point( size=1, color="green") +
+    theme_bw() +
+    coord_flip()+
+    xlab("Province")+
+    ggtitle(paste("RECOVERY ACCORDING TO PROVINCE",country))+
+     theme(axis.text.x =
+                       element_text(size  = 5,
+                                    angle = 90,
+                                    hjust = 1,
+                                    vjust = 1))
+})
+```
+
+
+### Chart 2
+
+```{r }
+renderPlotly({
+  
+  country_nam = input$n_breaks
+  country = input$n_breaks
+  
+  subs = subset(data,Country==country)
+  subs %>%
+    arrange(Recovered) %>%    # First sort by val. This sort the dataframe but NOT the factor levels   # This trick update the factor levels
+    ggplot( aes(x=Date, y=Recovered)) +
+    geom_bar( stat = "identity",size=0.5, color="green") +
+    theme_bw() +
+    coord_flip()+
+    ggtitle("Total Number of Recovered Cases:",sum(subs$Recovered))+
+    xlab("Date")+
+    ylab("Recovered Cases")+
+    ggtitle(paste("DATE WISE RECOVERY IN ",country))+
+    theme(axis.text.x =
+              element_text(size  = 10,
+                           angle = 90,
+                           hjust = 1,
+                           vjust = 1))
+
+
+
+    
+})
+```
